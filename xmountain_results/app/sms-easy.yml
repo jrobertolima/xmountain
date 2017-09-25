@@ -1,0 +1,9 @@
+from_address: noreply@example.com
+
+# Loosely based on the Wikipedia page: https://en.wikipedia.org/wiki/List_of_SMS_gateways
+carriers:
+  tim:
+    name:'Tim Brasil'
+    value:'@mms.tim.br'
+    
+ 
