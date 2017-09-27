@@ -16,16 +16,28 @@ require 'sqlite3'
 	end
 
 	def insere(values)
+
 		db = SQLite3::Database.open('xmountain.db')
 
-		db.execute("INSERT INTO atletas(matricula, nome, categoria, fone) VALUES(?,?,?,?)", values)
+		if db.execute("select * from atletas where matricula==#{values[0]}").empty?
+				db.execute("INSERT INTO atletas(matricula, nome, categoria, fone) VALUES(?,?,?,?)", values)
+		else
+				puts "Atleta já existe"
+				puts values
+				puts " "
+		end
 	end
 
 	def consulta
-		db = SQLite3::Database.open('xmountain')
-
+		db = SQLite3::Database.open('xmountain.db')
+    db.execute("select * from atletas") do |result|
+    	puts 'Atleta '
+    	puts result
+    	puts " "
+    end
 	end
-  res  = criadb
+
+  res = criadb
   values = [[
     "1702",
 		"Marya Lima",
@@ -45,6 +57,12 @@ require 'sqlite3'
     "31992320162"
   ],
   [
+    "1705",
+    "Rayla Lima",
+    "master b",
+    "31993500114"
+  ],
+  [
     '1703',
     "Tomaz Correa",
     "Expert",
@@ -52,9 +70,7 @@ require 'sqlite3'
   ]
   ]
   values.each {|item| insere(item)}
-  #puts res
-	#puts res.inspect
-	
+	consulta	
 
 
 
