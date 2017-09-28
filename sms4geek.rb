@@ -1,5 +1,28 @@
 require 'net/http'
 require 'sqlite3'
+require 'roo'
+
+  def importa(source)
+    workbook = Roo::Spreadsheet.open(source)
+    worksheets = workbook.sheets
+    puts "Found #{worksheets.count} worksheets"
+
+    worksheets.each do |worksheet|
+      puts "Reading: #{worksheet}"
+      num_rows = 0
+
+      workbook.sheet(worksheet).each_row_streaming do |row|
+        row_cells = row.map { |cell| cell.value }
+        num_rows += 1
+
+        # uncomment to print out row values
+        puts row_cells.join ' '
+      end
+      puts "Read #{num_rows} rows"
+    end
+
+    puts 'Done'  
+  end
 
 	def criadb
 		db = SQLite3::Database.new('xmountain.db')
@@ -36,8 +59,8 @@ require 'sqlite3'
     	puts " "
     end
 	end
-
-  res = criadb
+  
+ # res = criadb
   values = [[
     "1702",
 		"Marya Lima",
@@ -69,9 +92,9 @@ require 'sqlite3'
     "3199500083"
   ]
   ]
-  values.each {|item| insere(item)}
-	consulta	
-
+#  values.each {|item| insere(item)}
+#	consulta	
+  importa('./results.xlsx')
 
 
 =begin
