@@ -4,10 +4,34 @@ require 'roo'
 
   def importa(source)
     workbook = Roo::Spreadsheet.open(source)
-    worksheets = workbook.sheets
-    puts "Found #{worksheets.count} worksheets"
 
-    worksheets.each do |worksheet|
+#    puts workbook.info
+    #Select the workshhet to work. The first one, in that case.
+    workbook.default_sheet = workbook.sheets[0]
+
+# Create a hash of the headers so we can access columns by name (assuming row
+# 1 contains the column headings).  This will also grab any data in hidden
+# columns.
+		headers = Hash.new
+		workbook.row(1).each_with_index {|header,i|
+  		headers[header] = i
+		}
+
+# Iterate over the rows using the `first_row` and `last_row` methods.  Skip
+# the header row in the range.
+		((workbook.first_row + 1)..workbook.last_row).each do |row|
+
+		  # Get the column data using the column heading.
+		  matricula = workbook.row(row)[headers['Matrícula']]
+		  tempo = (workbook.row(row)[headers['Tempo']])
+		  
+		  print "Row: #{matricula}, #{tempo}\n\n" #.strftime("%H:%M:%S")
+		end  
+	end
+puts "Importando"
+  importa('./results.xlsx')
+  
+=begin    worksheets.each do |worksheet|
       puts "Reading: #{worksheet}"
       num_rows = 0
 
@@ -93,10 +117,11 @@ require 'roo'
   ]
   ]
 #  values.each {|item| insere(item)}
-#	consulta	
+=end#	consulta	
+	puts "Importando"
   importa('./results.xlsx')
 
-
+end
 =begin
 	
 rescue Exception => e
