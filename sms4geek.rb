@@ -2,53 +2,66 @@ require 'net/http'
 require 'sqlite3'
 require 'roo'
 
-def sendSms(atleta, categoria, tempo, fone, pos)
-  username = 'jbetol'
-  password = 'Petom@123'
-  msisdn = fone
-  msg = "XMountain Informa: 
-  #{atleta} 
-  Categoria #{categoria} 
-  Tempo de prova: #{tempo}
-  Classificação: /#{pos}"
-  puts msg
+@xmountain_DB = './db/xmountain.db'
+@planilha_resultados = './db/Listagem.xlsx'
+@qnt_atletas_categoria = Hash.new(0)
+@clas_atual_categoria = Hash.new(0)
+@db = nil 
 
-  uri = URI('https://sms4geeks.appspot.com/smsgateway')#ction=out&username=YourUserName&password=YourPassword&msisdn=555123456&msg=hello')
+def inicializaAmbiente
+  inicializaDB
+  inicializaCategorias
+end  
 
-  request = Net::HTTP::Post.new(uri)
-	request.set_form_data('action' => 'out', 'username' => username, 'password' => password,
-		     		'msisdn' => msisdn, 'msg' => msg)
+#Inicializa hash de categorias e de classificação
+def inicializaCategorias
+    puts "Inicializando categorias..."
+    result = @db.execute("select categoria from atletas") 
 
-	res = Net::HTTP.start(uri.hostname,  uri.port, :use_ssl => uri.scheme == 'http') do |http|
-		
-#		http.request(request)
-	#	puts "Res " + res.body
-	end	
+    result.each do |cat|
+      @qnt_atletas_categoria[cat[0]] += 1
+      @clas_atual_categoria[cat[0]] = 0
+    end
+    puts "Categorias done!"
 end
 
-def classifica(lista)
-  lista.size.to_s   
+def sendSms(atleta, categoria, tempo, fone, poscat, posgeral)
+
+  username = 'jbetol'
+  password = 'Petom@123'
+  msisdn = fone.gsub!(/\D/,"")
+  msg = "#{atleta}, XMountain informa seu resultado:
+  Categoria => #{categoria}
+  Tempo de prova => #{tempo}
+  Classificacao categoria parcial => #{poscat}/#{@qnt_atletas_categoria[categoria]}
+  Classificacao geral parcial => #{posgeral}/#{@qnt_atletas_categoria[categoria]}"
+
+    puts msg 
+    uri = URI('https://sms4geeks.appspot.com/smsgateway')#ction=out&username=YourUserName&password=YourPassword&msisdn=555123456&msg=hello')
+
+    request = Net::HTTP::Post.new(uri)
+  	request.set_form_data('action' => 'out', 'username' => username, 'password' => password,
+  		     		'msisdn' => msisdn, 'msg' => msg)
+
+  	res = Net::HTTP.start(uri.hostname,  uri.port, :use_ssl => uri.scheme == 'https') do |http|
+  		
+    #	http.request(request)
+  	end	
+end
+
+def classifica(categoria,tempo)
+  @clas_atual_categoria[categoria]+=1
 end
   
 #Consulta atleta dada a matrícula e retorna seus dados
 	def consulta_mat(matricula)
-		db = SQLite3::Database.open('xmountain.db')
-    db.results_as_hash = true
-    result = db.execute("select * from atletas where matricula = #{matricula}") 
- #   return result
+    result = @db.execute("select * from atletas where matricula = #{matricula}") 
+    return result
 	end
-  
-  def consulta_cat(categoria)
-    puts categoria
-		db = SQLite3::Database.open('xmountain.db')
-    result = db.execute("select matricula from atletas where categoria = '#{categoria}'") 
-  end
 
-  def importa(source)
-    workbook = Roo::Spreadsheet.open(source)
+  def importa#(source)
+    workbook = Roo::Spreadsheet.open(@planilha_resultados)
 
-#    puts workbook.info
-    #Select the workshhet to work. The first one, in that case.
     workbook.default_sheet = workbook.sheets[0]
 
 # Create a hash of the headers so we can access columns by name (assuming row
@@ -64,37 +77,32 @@ end
 		((workbook.first_row + 1)..workbook.last_row).each do |row|
 
 		  # Get the column data using the column heading.
-		  matricula = workbook.row(row)[headers['Matrícula']]
-		  tempo = (workbook.row(row)[headers['Tempo']])
-      # Fetch athlete data (name and phone) from DB
-      res  = consulta_mat(matricula)
-      pos = classifica(consulta_cat(res[0]['categoria']))  
-      sendSms(res[0]['nome'], res[0]['categoria'], tempo,res[0]['fone'], pos)
+		  matricula = workbook.row(row)[headers['PLAQUETA']]
+#		  tempo = (workbook.row(row)[headers['Tempo']])
+
+    # Fetch athlete data (name and phone) from DB, if do not use the Results_real spreadsheet
+      #  res  = consulta_mat(matricula)
+      #  pos = classifica(res[0]['categoria'], tempo)   
+      #  sendSms(res[0]['nome'], res[0]['categoria'], tempo,res[0]['fone'],pos)
+
+     #Fetch all data directly from spreadsheet Results_real
+      sendSms(workbook.row(row)[headers['NOME']], 
+              workbook.row(row)[headers['COD CAT']],
+              workbook.row(row)[headers['TEMPO PROVA']].strftime("%HH:%MM:%SS"),
+              workbook.row(row)[headers['Celular']].to_s,
+              workbook.row(row)[headers['POSIÇAO CAT']],
+              workbook.row(row)[headers['POSIÇAO GERAL']])
+
 		end  
 	end
   
-=begin    worksheets.each do |worksheet|
-      puts "Reading: #{worksheet}"
-      num_rows = 0
-
-      workbook.sheet(worksheet).each_row_streaming do |row|
-        row_cells = row.map { |cell| cell.value }
-        num_rows += 1
-
-        # uncomment to print out row values
-        puts row_cells.join ' '
-      end
-      puts "Read #{num_rows} rows"
-    end
-
-    puts 'Done'  
-  end
-=end
-
-	def criadb
-		db = SQLite3::Database.new('xmountain.db')
-
-		rows = db.execute <<-SQL
+#	Criando e configurando BD
+  def inicializaDB
+    puts "Inicializando DB..."
+		if @db.nil?
+      puts "Criado DB..."
+      @db = SQLite3::Database.new(@xmountain_DB) 
+      @db.execute <<-SQL
 							create table IF NOT EXISTS atletas(
 							 	matricula INTEGER PRIMARY KEY,
 							 	nome varchar(50),
@@ -102,18 +110,25 @@ end
 							 	fone varchar(14)
 							 	);
 							 	SQL
-		return rows					 	
+      puts "Abrindo DB..."
+      @db = SQLite3::Database.open(@xmountain_DB)
+    else
+      puts "Abrindo DB..."
+      @db = SQLite3::Database.open(@xmountain_DB)
+    end
+    @db.results_as_hash = true
+
 	end
 
-	def insere(values)
-
-		db = SQLite3::Database.open('xmountain.db')
-
-		if db.execute("select * from atletas where matricula==#{values[0]}").empty?
-				db.execute("INSERT INTO atletas(matricula, nome, categoria, fone) VALUES(?,?,?,?)", values)
-				puts values
+# Popula tabela de atletas
+	def insere(atleta)
+		if @db.execute("select * from atletas where matricula==#{atleta[0]}").empty? #Atleta não existe, então inclui
+				@db.execute("INSERT INTO atletas(matricula, nome, categoria, fone) VALUES(?,?,?,?)", atleta)
+        puts "Inserindo atletas no DB..."
 		end
 	end
+
+  inicializaAmbiente#(xmountain_DB,qnt_atletas_categoria)
  
 #  res = criadb
   values = [[
@@ -124,7 +139,7 @@ end
   ],
   [
     "1701",
-    "João Lima",
+    "Joao Lima",
     "master c",
     "31992320098"
   ],
@@ -141,7 +156,7 @@ end
     "31993500114"
   ],
   [
-    '1703',
+    "1703",
     "Tomaz Correa",
     "Expert",
     "3199500083"
@@ -165,42 +180,33 @@ end
     "31998854354"
   ],
   [
-    '1714',
+    "1714",
     "Henrik Jailton Souza",
     "Expert",
     "31984954144"
+  ],
+    [
+    "1707",
+    "Caca Lima",
+    "cadete",
+    "31992320098"
+  ],
+  [
+    "1709",
+    "Deusdete da Silva",
+    "master b",
+    "31993500114"
+  ],
+  [
+    "1708",
+    "Lula",
+    "Expert",
+    "3199500083"
   ] 
   ]
   values.each {|item| insere(item)}
-	puts "Importando"
-  importa('./results.xlsx')
+	importa#(@planilha_resultados)
+  puts @clas_atual_categoria
+  @db.close
+  puts "DB fechado..."
 
-#end
-
-		#URI.parse('https://sms4geeks.appspot.com/smsgateway'),
-	  #   {'action' => 'out', 'username' => username, 'password' => password,
-	  #   		'msisdn' => msisdn, 'msg' => msg})
-
-#p http.status
-=begin
-MASTER CM
-MASTER CF
-30 km MASTER DM
-30 km MASTER DF
-30 km PNE M
-      PNE F  
-30 km SPORT F
-30 km SPORT MA
-30 km SPORT MB
-30 km T-REX
-48 km CADETE
-48 km ELITE M
-48 km MASTER 30F
-48 km MASTER A1
-48 km MASTER A2
-48 km MASTER B1
-48 km MASTER B2
-48 km SUB 30F
-48 km SUB 30M
-DUPLA MISTA 
-=end
