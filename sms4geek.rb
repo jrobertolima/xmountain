@@ -1,5 +1,4 @@
 require 'net/http'
-require 'openssl'
 require 'sqlite3'
 require 'roo'
 
@@ -8,7 +7,7 @@ require 'roo'
 # Files application
 @xmountain_DB = './db/xmountain.db'
 @planilha_resultados = './db/Listagem.xlsx'
-@planilha_categorias = './db/categorias.ods'
+@planilha_categorias = './db/Categorias.ods'
 
 #globals variable
 @qnt_atletas_categoria = Hash.new(0)
@@ -44,19 +43,14 @@ def inicializaCategorias
 end
 
 def preparaEnvioSMSGenerico
-
   res = @db.execute("select * from atletas where matricula>1710")
   res.each do |atleta|
-    msg = "
-          Caro #{atleta['nome'].split[0]}, 
-          XMOUNTAIN agradece sua inscricao na
-          categoria #{atleta['categoria']}.
-          Aguardamos voce em Lagoa Santa no 
-          dia 22OUT aas 10h.
-          Desejamos uma BOA PROVA.       
-          www.xmountain.com.br
-          "
-    sendSmsGenerico(msg,atleta[3])
+    msg = "Caro #{atleta['nome'].split[0]}, 
+  XMOUNTAIN agradece sua inscricao na categoria #{atleta['categoria']}.
+  Nos vemos em 22OUT2017.
+  BOA PROVA!
+  www.xmountain.com.br"
+  sendSmsGenerico(msg,atleta[3])
   end
 end
 
@@ -64,9 +58,9 @@ def sendSmsGenerico(msg, fone)
 
   username = 'jbetol'
   password = 'Petom@123'
-  msisdn = fone.gsub!(/\D/,"") #retira o que não for número do telefone
+  msisdn = fone.gsub(/\D/,"") #retira o que não for número do telefone
   
-    puts msg 
+    puts msg + " "
     uri = URI('https://sms4geeks.appspot.com/smsgateway')#ction=out&username=YourUserName&password=YourPassword&msisdn=555123456&msg=hello')
 
     request = Net::HTTP::Post.new(uri)
@@ -83,16 +77,16 @@ def sendSmsResultado(atleta, categoria, tempo, fone, poscat, posgeral)
 
   username = 'jbetol'
   password = 'Petom@123'
-  msisdn = '992320098'#fone.gsub!(/\D/,"") #retira o que não for número do telefone
-  msg = "
-        #{atleta.split[0]}, XMountain informa seu resultado:
-        Categoria => #{@categorias[categoria]}
-        Tempo de prova => #{tempo.strftime("%HH:%MM:%SS")}
-        Classificacao categoria parcial => #{poscat}/#{@qnt_atletas_categoria[@categorias[categoria]]}
-        Classificacao geral parcial => #{posgeral}/#{@qnt_atletas_total}
-        "
+  msisdn = fone.gsub(/\D/,"") #retira o que não for número do telefone
+  msg = "#{atleta.split[0]},
+  XMountain informa seu resultado parcial:
+  Categoria #{@categorias[categoria]}
+  Tempo #{tempo.strftime("%HH:%MM:%SS")}
+  Clas categ #{poscat}/#{@qnt_atletas_categoria[@categorias[categoria]]}
+  Clas geral #{posgeral}/#{@qnt_atletas_total}.
+  www.xmountain.com.br"
   
-#    puts msg 
+    puts msg 
     uri = URI('https://sms4geeks.appspot.com/smsgateway')#ction=out&username=YourUserName&password=YourPassword&msisdn=555123456&msg=hello')
 
     request = Net::HTTP::Post.new(uri)
@@ -119,7 +113,6 @@ def preparaEnvioSMSResultado
   }
   
 # Iterate over courses PRO and Sport
-      mandauma = true 
   0.upto(1) do |i|
     workbook.default_sheet = workbook.sheets[i] # Setting default sheet for PRO and SPORT
 
@@ -137,15 +130,13 @@ def preparaEnvioSMSResultado
       #  sendSms(res[0]['nome'], res[0]['categoria'], tempo,res[0]['fone'],pos)
 
 #Fetch all data directly from spreadsheet Results_real
-      if mandauma
+      if workbook.row(row)[headers['PLAQUETA']] > 1710
          sendSmsResultado(workbook.row(row)[headers['NOME']], 
               workbook.row(row)[headers['COD CAT']],
               workbook.row(row)[headers['TEMPO PROVA']],
               workbook.row(row)[headers['Celular']].to_s,
               workbook.row(row)[headers['POSIÇAO CAT']],
               workbook.row(row)[headers['POSIÇAO GERAL']])
-      mandauma = false
-          puts "mandou"
        end
     end 
   end      
