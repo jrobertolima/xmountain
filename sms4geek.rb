@@ -2,7 +2,7 @@ require 'net/http'
 require 'sqlite3'
 require 'roo'
 
-#OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
+OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
 #Inicialização de variáveis 
 # Files application
 @xmountain_DB = './db/xmountain.db'
@@ -43,14 +43,14 @@ def inicializaCategorias
 end
 
 def preparaEnvioSMSGenerico
-  res = @db.execute("select * from atletas where matricula>1710")
+  res = @db.execute("select * from atletas where matricula=1714")
   res.each do |atleta|
     msg = "Caro #{atleta['nome'].split[0]}, 
   XMOUNTAIN agradece sua inscricao na categoria #{atleta['categoria']}.
   Nos vemos em 22OUT2017.
   BOA PROVA!
   www.xmountain.com.br"
-  sendSmsGenerico(msg,atleta[3])
+  sendSmsGenerico(msg,"99232-0098")#atleta[3])
   end
 end
 
@@ -79,7 +79,7 @@ def sendSmsResultado(atleta, categoria, tempo, fone, poscat, posgeral)
   password = 'Petom@123'
   msisdn = fone.gsub(/\D/,"") #retira o que não for número do telefone
   msg = "#{atleta.split[0]},
-  XMountain informa seu resultado parcial:
+  XMountain informa resultado parcial:
   Categoria #{@categorias[categoria]}
   Tempo #{tempo.strftime("%HH:%MM:%SS")}
   Clas categ #{poscat}/#{@qnt_atletas_categoria[@categorias[categoria]]}
@@ -210,7 +210,7 @@ inicializaAmbiente#(xmountain_DB,qnt_atletas_categoria)
 #  res = criadb
 #insereAtleta # In order to prepare xmountain_DB
 preparaEnvioSMSResultado
-preparaEnvioSMSGenerico
+#preparaEnvioSMSGenerico
 @db.close
 puts "Saindo em paz..."
  
