@@ -2,7 +2,7 @@ require 'net/http'
 require 'sqlite3'
 require 'roo'
 
-OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
+#OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
 #Inicialização de variáveis 
 # Files application
 @xmountain_DB = './db/xmountain.db'
@@ -60,7 +60,7 @@ def sendSmsGenerico(msg, fone)
   password = 'Petom@123'
   msisdn = fone.gsub(/\D/,"") #retira o que não for número do telefone
   
-    puts msg + " "
+    puts msg + " " + msisdn
     uri = URI('https://sms4geeks.appspot.com/smsgateway')#ction=out&username=YourUserName&password=YourPassword&msisdn=555123456&msg=hello')
 
     request = Net::HTTP::Post.new(uri)
@@ -68,7 +68,7 @@ def sendSmsGenerico(msg, fone)
   		     		'msisdn' => msisdn, 'msg' => msg)
 
   	res = Net::HTTP.start(uri.hostname,  uri.port, :use_ssl => uri.scheme == 'https') do |http|
-        http.request(request)
+     #   http.request(request)
   	end	
 end
 
@@ -77,16 +77,18 @@ def sendSmsResultado(atleta, categoria, tempo, fone, poscat, posgeral)
 
   username = 'jbetol'
   password = 'Petom@123'
-  msisdn = fone.gsub(/\D/,"") #retira o que não for número do telefone
+  msisdn = fone.gsub!(/\D/,"") #retira o que não for número do telefone
   msg = "#{atleta.split[0]},
-  XMountain informa resultado parcial:
+  XMountain informa seu resultado:
   Categoria #{@categorias[categoria]}
   Tempo #{tempo.strftime("%HH:%MM:%SS")}
-  Clas categ #{poscat}/#{@qnt_atletas_categoria[@categorias[categoria]]}
+  Clas na categ #{poscat}/#{@qnt_atletas_categoria[@categorias[categoria]]}
   Clas geral #{posgeral}/#{@qnt_atletas_total}.
   www.xmountain.com.br"
+
+# Definir tamanho maximo msg cortando a última linha.
   
-    puts msg 
+    puts msg + " " + msisdn
     uri = URI('https://sms4geeks.appspot.com/smsgateway')#ction=out&username=YourUserName&password=YourPassword&msisdn=555123456&msg=hello')
 
     request = Net::HTTP::Post.new(uri)
@@ -95,6 +97,7 @@ def sendSmsResultado(atleta, categoria, tempo, fone, poscat, posgeral)
 
   	res = Net::HTTP.start(uri.hostname,  uri.port, :use_ssl => uri.scheme == 'https') do |http|
         http.request(request)
+
   	end	
 end
 
@@ -138,6 +141,7 @@ def preparaEnvioSMSResultado
               workbook.row(row)[headers['POSIÇAO CAT']],
               workbook.row(row)[headers['POSIÇAO GERAL']])
        end
+       1.upto(1000) {}
     end 
   end      
   workbook.close
