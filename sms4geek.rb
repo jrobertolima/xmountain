@@ -42,22 +42,43 @@ def inicializaCategorias
     end
 end
 
+#Deal with phone number to verify if it's valid
+def valida_fone(fone)
+# get only numbers
+  pn = fone.gsub(/[^\d]/,"")
+# get numbers with size <= 11
+  if pn =~ /^(\d{0,4})(\d{5})(\d{4})$/
+    p1 = $1 #deal with 2 or 4 initial characters
+    p1.size == 4 ?  p1 = p1.slice(2,3) : ((p1.size == 2) or (p1.size == 0) ? p1 : pn = false)	
+    pn = "#{p1}#{$2}#{$3}" if pn 
+  else
+    pn = false
+  end
+  return pn  
+end
+
 def preparaEnvioSMSGenerico
-  res = @db.execute("select * from atletas where matricula=1714")
+  res = @db.execute("select * from atletas where matricula>1710")
   res.each do |atleta|
     msg = "Caro #{atleta['nome'].split[0]}, 
   XMOUNTAIN agradece sua inscricao na categoria #{atleta['categoria']}.
   Nos vemos em 22OUT2017.
   BOA PROVA!
   www.xmountain.com.br"
-  sendSmsGenerico(msg,"99232-0098")#atleta[3])
+    fone = atleta['fone'] #{}"992320098"
+    if valida_fone fone
+      sendSmsGenerico(msg,fone)#atleta[3])
+    else
+      puts "Fone inválido"
+    end    
   end
 end
 
+#Envia SMS com texto definido
 def sendSmsGenerico(msg, fone)
 
-  username = 'jbetol'
-  password = 'Petom@123'
+  username = 'xmountainrace'
+  password = 'xmountain@2017'
   msisdn = fone.gsub(/\D/,"") #retira o que não for número do telefone
   
     puts msg + " " + msisdn
@@ -68,7 +89,7 @@ def sendSmsGenerico(msg, fone)
   		     		'msisdn' => msisdn, 'msg' => msg)
 
   	res = Net::HTTP.start(uri.hostname,  uri.port, :use_ssl => uri.scheme == 'https') do |http|
-     #   http.request(request)
+        http.request(request)
   	end	
 end
 
@@ -97,10 +118,10 @@ def sendSmsResultado(atleta, categoria, tempo, fone, poscat, posgeral)
 
   	res = Net::HTTP.start(uri.hostname,  uri.port, :use_ssl => uri.scheme == 'https') do |http|
         http.request(request)
-
-  	end	
+   	end	
 end
 
+# Prepara dados para envio do resultado do atleta
 def preparaEnvioSMSResultado
 
   workbook = Roo::Spreadsheet.open(@planilha_resultados)
@@ -124,24 +145,20 @@ def preparaEnvioSMSResultado
     ((workbook.first_row + 1)..workbook.last_row).each do |row|
 
 # Get the column data using the column heading.
-#     matricula = workbook.row(row)[headers['PLAQUETA']]
-#		  tempo = (workbook.row(row)[headers['Tempo']])
-
-    # Fetch athlete data (name and phone) from DB, if do not use the Results_real spreadsheet
-      #  res  = consulta_mat(matricula)
-      #  pos = classifica(res[0]['categoria'], tempo)   
-      #  sendSms(res[0]['nome'], res[0]['categoria'], tempo,res[0]['fone'],pos)
-
 #Fetch all data directly from spreadsheet Results_real
-      if workbook.row(row)[headers['PLAQUETA']] > 1710
-         sendSmsResultado(workbook.row(row)[headers['NOME']], 
-              workbook.row(row)[headers['COD CAT']],
-              workbook.row(row)[headers['TEMPO PROVA']],
-              workbook.row(row)[headers['Celular']].to_s,
-              workbook.row(row)[headers['POSIÇAO CAT']],
-              workbook.row(row)[headers['POSIÇAO GERAL']])
-       end
-       1.upto(1000) {}
+      matricula = workbook.row(row)[headers['PLAQUETA']]
+      nome = workbook.row(row)[headers['NOME']]
+      cod_categoria = workbook.row(row)[headers['COD CAT']]
+      tempo = workbook.row(row)[headers['TEMPO PROVA']]
+      fone = valida_fone(workbook.row(row)[headers['Celular']].to_s)
+      pos_categoria = workbook.row(row)[headers['POSIÇAO CAT']]
+      pos_geral = workbook.row(row)[headers['POSIÇAO GERAL']]
+
+      if fone and matricula > 1710
+         sendSmsResultado(nome, cod_categoria, tempo, fone, pos_categoria, pos_geral)
+         # 1.upto(1000) {}
+
+      end
     end 
   end      
   workbook.close
@@ -213,8 +230,8 @@ inicializaAmbiente#(xmountain_DB,qnt_atletas_categoria)
 
 #  res = criadb
 #insereAtleta # In order to prepare xmountain_DB
-preparaEnvioSMSResultado
-#preparaEnvioSMSGenerico
+#preparaEnvioSMSResultado
+preparaEnvioSMSGenerico
 @db.close
 puts "Saindo em paz..."
  
